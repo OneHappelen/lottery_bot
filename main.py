@@ -16,7 +16,8 @@ app = Client(session_name, api_id=api_id, api_hash=api_hash)
 groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
 '@remedia', '@zubarefff', '@provod', '@mosnoow', '@biggeekru', '@TrendWatching24', '@droidergram', '@unit_ru', '@thearseny', '@filatovTIMES', '@stopgameru',
 '@trendach', '@mknewsru', '@dbeskromny', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
-'@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru', '@AuroraTeam', '@bigpencil', '@mosguru', '@moscowmi']
+'@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru', '@AuroraTeam', '@bigpencil', '@mosguru', '@moscowmi', '@techbybird', '@technodeus2023',
+'@klientvsprav', '@rbtshki']
 
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
