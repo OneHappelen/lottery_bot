@@ -10,22 +10,13 @@ load_dotenv()
 api_id = os.getenv("API_ID")
 api_hash = os.getenv("API_HASH")
 session_name = os.getenv("SESSION_NAME")
-groups_file = "groups.txt"
 
 app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
-def load_groups(groups_file):
-    groups = []
-    try:
-        with open(groups_file, 'r') as file:
-            content = file.read().strip()
-            groups = [group.strip() for group in content.split(',') if group.strip()]
-    except FileNotFoundError:
-        print(f"Файл {groups_file} не найден.")
-    except Exception as e:
-        print(f"Произошла ошибка при чтении файла: {e}")
-    return groups
-
+groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
+'@remedia', '@zubarefff', '@provod', '@mosnoow', '@biggeekru', '@TrendWatching24', '@droidergram', '@unit_ru', '@thearseny', '@filatovTIMES', '@stopgameru',
+'@trendach', '@mknewsru', '@dbeskromny', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
+'@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru', '@AuroraTeam', '@bigpencil']
 
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
@@ -61,7 +52,7 @@ with app:
     while True:
         now_time = datetime.now()
         if now_time.hour in target_hours:
-            find_contest(load_groups(groups_file))
+            find_contest(groups)
             time.sleep(3600)
             print('Ждем след часа')
         else:
