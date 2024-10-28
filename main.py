@@ -22,7 +22,8 @@ def find_contest(channel):
     words = ["Участвую", "Участвовать"]
     for group in channel:
         try:
-            time.sleep(20)
+            time.sleep(5)
+            print(f"Канал {group} в процессе")
             chat = app.get_chat(group)
             chat_history = list(app.get_chat_history(chat.id, limit=7))
             for message in chat_history:
