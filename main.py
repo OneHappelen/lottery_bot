@@ -63,5 +63,6 @@ with app:
         if now_time.hour in target_hours:
             find_contest(load_groups(groups_file))
             time.sleep(3600)
+            print('Ждем след часа')
         else:
             time.sleep(10*3600)
