@@ -54,7 +54,7 @@ with app:
         now_time = datetime.now()
         if now_time.hour in target_hours:
             find_contest(groups)
-            time.sleep(3600)
             print('Ждем след часа')
+            time.sleep(3600)
         else:
             time.sleep(10*3600)
