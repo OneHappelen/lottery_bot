@@ -41,15 +41,15 @@ def find_contest(channel):
                                 print("Найдено сообщение с кнопкой для участия.")
                                 
                                 # Проверка на наличие похожего сообщения в группе @VitalSkam
-                                existing_messages = app.search_messages('@lottery_sng', query=message.caption or '', limit=1)
+                                existing_messages = app.search_messages('@lottery_russia', query=message.caption or '', limit=1)
                                 is_duplicate = any(msg.caption == message.caption for msg in existing_messages)
                                 
                                 if not is_duplicate:
-                                    app.forward_messages('@lottery_sng', chat.id, message.id)
-                                    print("Сообщение отправлено в @lottery_sng.")
+                                    app.forward_messages('@lottery_russia', chat.id, message.id)
+                                    print("Сообщение отправлено в @lottery_russia.")
                                     time.sleep(3)
                                 else:
-                                    print("Такое сообщение уже есть в @lottery_sng, пропуск.")
+                                    print("Такое сообщение уже есть в @lottery_russia пропуск.")
                                     
         except Exception as e:
             print(f"Ошибка при обработке группы {group}: {e}")
