@@ -3,3 +3,4 @@ pyrogram/
 .env
 my_user_bot.session
 .vscode/
+my_user_bot.session-journal
