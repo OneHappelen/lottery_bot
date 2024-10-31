@@ -18,7 +18,8 @@ groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedliv
 '@trendach', '@mknewsru', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
 '@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru', '@AuroraTeam', '@bigpencil', '@mosguru', '@moscowmi', '@techbybird', '@technodeus2023',
 '@klientvsprav', '@rbtshki', '@bugfeature', '@exploitex', '@techno_yandex', '@zhiga', '@yandex', '@topor', '@dvizhitall', '@pekagame', '@moscowachplus',
-'@nebudetgg', '@moscowmap', '@pravdadirty', '@infomoscow24', '@rhymestg', '@lifegoodd1']
+'@nebudetgg', '@moscowmap', '@pravdadirty', '@infomoscow24', '@rhymestg', '@lifegoodd1', '@codecamp', '@malepeg', '@xor_journal', '@colizeumarena',
+'@rhymesport', '@Match_TV', '@sportsru', '@news_matchtv']
 
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
