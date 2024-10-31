@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import time
 from datetime import datetime
+import sqlite3
 
 
 load_dotenv()
@@ -13,6 +14,9 @@ session_name = os.getenv("SESSION_NAME")
 
 app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
+
+
+
 groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
 '@remedia', '@zubarefff', '@provod', '@mosnoow', '@biggeekru', '@TrendWatching24', '@unit_ru', '@thearseny', '@filatovTIMES', '@stopgameru',
 '@trendach', '@mknewsru', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
@@ -21,8 +25,41 @@ groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedliv
 '@nebudetgg', '@moscowmap', '@pravdadirty', '@infomoscow24', '@rhymestg', '@lifegoodd1', '@codecamp', '@malepeg', '@xor_journal', '@colizeumarena',
 '@rhymesport', '@Match_TV', '@sportsru', '@news_matchtv']
 
+
+
+# Функция для работы с базой данных
+def manage_db_connection():
+    connection = sqlite3.connect('my_database.db')
+    cursor = connection.cursor()
+    
+    # Создаем таблицу с уникальным идентификатором сообщения
+    cursor.execute('''
+    CREATE TABLE IF NOT EXISTS Forward_ID (
+        MessageID INTEGER NOT NULL UNIQUE
+    )
+    ''')
+    
+    connection.commit()
+    return connection, cursor
+
+
+
+def check_and_add_message(cursor, message_id):
+    cursor.execute("SELECT 1 FROM Forward_ID WHERE MessageID = ?", (message_id,))
+    result = cursor.fetchone()
+    
+    if result:
+        return True
+    else:
+        cursor.execute("INSERT INTO Forward_ID (MessageID) VALUES (?)", (message_id,))
+        return False
+
+
+
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
+    connection, cursor = manage_db_connection()
+
     for group in channel:
         try:
             time.sleep(3)
@@ -37,28 +74,35 @@ def find_contest(channel):
                                 print("Найдено сообщение с кнопкой для участия.")
                                 
                                 # Проверка на наличие похожего сообщения в группе @VitalSkam
-                                existing_messages = app.search_messages('@giveawaybrand', query=message.caption or '', limit=1)
-                                is_duplicate = any(msg.caption == message.caption for msg in existing_messages)
-                                
-                                if not is_duplicate:
-                                    app.forward_messages('@giveawaybrand', chat.id, message.id)
-                                    print("Сообщение отправлено в @giveawaybrand.")
-                                    time.sleep(3)
-                                else:
-                                    print("Такое сообщение уже есть в @giveawaybrand пропуск.")
+                                forward_id = message.forward_from_message_id
+                                if forward_id is not None:
+                                    is_duplicate = check_and_add_message(cursor, forward_id)
+                                    
+                                    if not is_duplicate:
+                                        app.forward_messages('@giveawaybrand', chat.id, message.id)
+                                        print("Сообщение отправлено в @giveawaybrand.")
+                                        time.sleep(3)
+                                    else:
+                                        print("Такое сообщение уже есть в @giveawaybrand пропуск.")
                                     
         except Exception as e:
             print(f"Ошибка при обработке группы {group}: {e}")
+    connection.commit()
+    cursor.close()
+    connection.close()
 
 
 target_hours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
 with app:
-    while True:
-        now_time = datetime.now()
-        if now_time.hour in target_hours:
-            find_contest(groups)
-            print('Ждем след часа')
-            time.sleep(1800)
-        else:
-            time.sleep(7*3600)
+    try:
+        while True:
+            now_time = datetime.now()
+            if now_time.hour in target_hours:
+                find_contest(groups)
+                print('Ждем след часа')
+                time.sleep(1800)
+            else:
+                time.sleep(7*3600)
+    finally:
+        print("Работа завершена")
