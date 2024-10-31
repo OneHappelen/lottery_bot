@@ -74,9 +74,9 @@ def find_contest(channel):
                                 print("Найдено сообщение с кнопкой для участия.")
                                 
                                 # Проверка на наличие похожего сообщения в группе @VitalSkam
-                                forward_id = message.forward_from_message_id
-                                if forward_id is not None:
-                                    is_duplicate = check_and_add_message(cursor, forward_id)
+                                message_id = message.id
+                                if message_id is not None:
+                                    is_duplicate = check_and_add_message(cursor, message_id)
                                     
                                     if not is_duplicate:
                                         app.forward_messages('@giveawaybrand', chat.id, message.id)
