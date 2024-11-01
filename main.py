@@ -35,7 +35,9 @@ def manage_db_connection():
     # Создаем таблицу с уникальным идентификатором сообщения
     cursor.execute('''
     CREATE TABLE IF NOT EXISTS Forward_ID (
-        MessageID INTEGER NOT NULL UNIQUE
+        ChatID INTEGER NOT NULL,
+        MessageID INTEGER NOT NULL,
+        UNIQUE(ChatID, MessageID)
     )
     ''')
     
@@ -44,14 +46,14 @@ def manage_db_connection():
 
 
 
-def check_and_add_message(cursor, message_id):
-    cursor.execute("SELECT 1 FROM Forward_ID WHERE MessageID = ?", (message_id,))
+def check_and_add_message(cursor,chat_id, message_id):
+    cursor.execute("SELECT 1 FROM Forward_ID WHERE ChatID = ? AND MessageID = ?", (chat_id, message_id,))
     result = cursor.fetchone()
     
     if result:
         return True
     else:
-        cursor.execute("INSERT INTO Forward_ID (MessageID) VALUES (?)", (message_id,))
+        cursor.execute("INSERT INTO Forward_ID (ChatID, MessageID) VALUES (?, ?)", (chat_id, message_id,))
         return False
 
 
@@ -62,7 +64,7 @@ def find_contest(channel):
 
     for group in channel:
         try:
-            time.sleep(3)
+            time.sleep(1)
             print(f"Канал {group} в процессе")
             chat = app.get_chat(group)
             chat_history = list(app.get_chat_history(chat.id, limit=7))
@@ -76,7 +78,7 @@ def find_contest(channel):
                                 # Проверка на наличие похожего сообщения в группе @VitalSkam
                                 message_id = message.id
                                 if message_id is not None:
-                                    is_duplicate = check_and_add_message(cursor, message_id)
+                                    is_duplicate = check_and_add_message(cursor,chat.id, message_id)
                                     
                                     if not is_duplicate:
                                         app.forward_messages('@giveawaybrand', chat.id, message.id)
