@@ -19,7 +19,7 @@ app = Client(session_name, api_id=api_id, api_hash=api_hash)
 
 
 groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
-'@remedia', '@zubarefff', '@provod', '@mosnoow', '@biggeekru', '@TrendWatching24', '@unit_ru', '@thearseny', '@stopgameru',
+'@remedia', '@zubarefff', '@provod', '@mosnews', '@biggeekru', '@TrendWatching24', '@unit_ru', '@thearseny', '@stopgameru',
 '@trendach', '@mknewsru', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
 '@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru' '@bigpencil', '@mosguru', '@moscowmi', '@techbybird', '@technodeus2023',
 '@klientvsprav', '@rbtshki', '@bugfeature', '@exploitex', '@techno_yandex', '@zhiga', '@yandex', '@topor', '@dvizhitall', '@pekagame', '@moscowachplus',
