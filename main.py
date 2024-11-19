@@ -61,8 +61,8 @@ def check_and_add_message(cursor,chat_id, message_id):
 
 def extract_and_send_date():
     try:
-        # Получаем последний пост из канала @giveawaybrandtest
-        channel = "@giveawaybrandtest"
+        # Получаем последний пост из канала @giveawaybrand
+        channel = "@giveawaybrand"
         chat = app.get_chat(channel)
         last_message = list(app.get_chat_history(chat.id, limit=1))[0]
         
