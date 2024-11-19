@@ -101,12 +101,18 @@ def extract_and_send_date():
             # Формат "дд.мм.гг"
             day, month, year = match_numeric_date.groups()
             date_str = f"{day}.{month}.{year}"
+
+        if hasattr(last_message, "forward_from_chat") and last_message.forward_from_chat:
+            forward_chat = last_message.forward_from_chat
+
+            # Извлекаем данные из объекта
+            chat_title = forward_chat.title    
         
         if date_str:
             # Формируем сообщение
             message = (
                 f"Дата - {date_str}\n"
-                f"Канал - {chat.title}\n"
+                f"Канал - {chat_title}\n"
                 f"Ссылка - https://t.me/{channel}/{last_message.id}"
             )
             
