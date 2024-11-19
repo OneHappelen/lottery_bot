@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 import time
 from datetime import datetime
 import sqlite3
+import re
 
 
 load_dotenv()
@@ -58,6 +59,68 @@ def check_and_add_message(cursor,chat_id, message_id):
         return False
 
 
+def extract_and_send_date():
+    try:
+        # Получаем последний пост из канала @giveawaybrandtest
+        channel = "@giveawaybrandtest"
+        chat = app.get_chat(channel)
+        last_message = list(app.get_chat_history(chat.id, limit=1))[0]
+        
+        # Извлечение текста из caption или text
+        text = ""
+        if hasattr(last_message, "caption") and last_message.caption:
+            text = last_message.caption
+        elif hasattr(last_message, "text") and last_message.text:
+            text = last_message.text
+        
+        if not text:
+            app.send_message("@dategiveaway", "Не удалось извлечь текст из последнего сообщения.")
+            return  
+        
+        # Поиск даты и времени в различных форматах
+        match_word_date_time = re.search(r"(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\s+в\s+(\d{1,2}:\d{2})", text)
+        match_word_date = re.search(r"(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)", text)
+        match_numeric_date_time = re.search(r"(\d{2})\.(\d{2})\.(\d{2,4})\s+в\s+(\d{1,2}:\d{2})", text)
+        match_numeric_date = re.search(r"(\d{2})\.(\d{2})\.(\d{2,4})", text)
+        
+        date_str = None  # Для хранения отформатированной строки даты
+        
+        if match_word_date_time:
+            # Формат "день месяц в часы:минуты"
+            day, month, time_str = match_word_date_time.groups()
+            date_str = f"{day} {month} в {time_str}"
+        elif match_word_date:
+            # Формат "день месяц"
+            day, month = match_word_date.groups()
+            date_str = f"{day} {month}"
+        elif match_numeric_date_time:
+            # Формат "дд.мм.гг в часы:минуты"
+            day, month, year, time_str = match_numeric_date_time.groups()
+            date_str = f"{day}.{month}.{year} в {time_str}"
+        elif match_numeric_date:
+            # Формат "дд.мм.гг"
+            day, month, year = match_numeric_date.groups()
+            date_str = f"{day}.{month}.{year}"
+        
+        if date_str:
+            # Формируем сообщение
+            message = (
+                f"Дата - {date_str}\n"
+                f"Канал - {chat.title}\n"
+                f"Ссылка - https://t.me/{channel}/{last_message.id}"
+            )
+            
+            # Отправляем сообщение в @dategiveaway
+            app.send_message("@dategiveaway", message)
+            print(f"Сообщение отправлено:\n{message}")
+        else:
+            app.send_message("@dategiveaway", "Дата не найдена в последнем сообщении.")
+            print("Дата не найдена в последнем сообщении.")
+    except Exception as e:
+        print(f"Ошибка: {e}")
+
+
+
 
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
@@ -84,6 +147,7 @@ def find_contest(channel):
                                     if not is_duplicate:
                                         app.forward_messages('@giveawaybrand', chat.id, message.id)
                                         print("Сообщение отправлено в @giveawaybrand.")
+                                        extract_and_send_date()
                                         time.sleep(3)
                                     else:
                                         print("Такое сообщение уже есть в @giveawaybrand пропуск.")
