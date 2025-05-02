@@ -1,4 +1,4 @@
-pyrogram/
+lottery_venv/
 .DS_Store
 .env
 my_user_bot.session

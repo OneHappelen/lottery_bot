@@ -22,7 +22,7 @@ groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedliv
 '@remedia', '@zubarefff', '@provod', '@mosnews', '@biggeekru', '@TrendWatching24', '@unit_ru', '@thearseny', '@stopgameru',
 '@trendach', '@mknewsru', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
 '@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru' '@bigpencil', '@mosguru', '@moscowmi', '@techbybird', '@technodeus2023',
-'@klientvsprav', '@rbtshki', '@bugfeature', '@exploitex', '@techno_yandex', '@zhiga', '@yandex', '@topor', '@dvizhitall', '@pekagame', '@moscowachplus',
+'@klientvsprav', '@rbtshki', '@bugfeature', '@exploitex', '@techno_yandex', '@zhiga', '@yandex', '@topor', '@dvizhitall', 't.me/+VIuvvPWhb-mR4BRq', '@moscowachplus',
 '@nebudetgg', '@moscowmap', '@pravdadirty', '@infomoscow24', '@rhymestg', '@lifegoodd1', '@codecamp', '@malepeg', '@xor_journal', '@colizeumarena',
 '@rhymesport', '@Match_TV', '@sportsru', '@news_matchtv', '@Inter_sh0p', '@sports_kiber', '@investingcorp', '@Moscow_happy', '@luka_ebkov', '@OneBoxTwoBox',
 '@Technical_R_D', '@rostov_glavniy', '@tochnokosmos', '@msk7days', '@mrnickstore', '@nechetoff', '@ryanrun', '@boomers_TV', '@oplata_skoro_budet', '@kostylofficial']
@@ -131,6 +131,7 @@ def extract_and_send_date():
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
     connection, cursor = manage_db_connection()
+    count_contest = 0
 
     for group in channel:
         try:
@@ -153,6 +154,7 @@ def find_contest(channel):
                                     if not is_duplicate:
                                         app.forward_messages('@giveawaybrand', chat.id, message.id)
                                         print("Сообщение отправлено в @giveawaybrand.")
+                                        count_contest += 1
                                         extract_and_send_date()
                                         time.sleep(3)
                                     else:
@@ -163,6 +165,16 @@ def find_contest(channel):
     connection.commit()
     cursor.close()
     connection.close()
+    return count_contest
+
+
+def send_final_report(count_contest):
+    try:
+        report_message = f"Итоги за сегодня:\nНайдено розыгрешей: {count_contest}"
+        app.send_message("@dategiveaway", report_message)
+        print(f"Отсчет доставлен: {report_message}")
+    except Exception as e:
+        print(f"Ошибка при отправке отчета: {e}")     
 
 
 target_hours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
@@ -173,9 +185,11 @@ with app:
             now_time = datetime.now()
             if now_time.hour in target_hours:
                 find_contest(groups)
-                print('Ждем след часа')
+                print('Ждем следующей проверки...')
                 time.sleep(1800)
             else:
+                total_contests = find_contest(groups)
+                send_final_report(total_contests)
                 time.sleep(7*3600)
     finally:
         print("Работа завершена")
