@@ -29,7 +29,10 @@ groups = ['@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedliv
 
 
 
-# Функция для работы с базой данных
+"""
+Функция для управления соединением с базой данных SQLite
+
+"""
 def manage_db_connection():
     connection = sqlite3.connect('my_database.db')
     cursor = connection.cursor()
@@ -46,7 +49,9 @@ def manage_db_connection():
     connection.commit()
     return connection, cursor
 
-
+"""
+Функция для проверки наличия сообщения в базе данных и добавления его, если его там нет
+"""
 
 def check_and_add_message(cursor,chat_id, message_id):
     cursor.execute("SELECT 1 FROM Forward_ID WHERE ChatID = ? AND MessageID = ?", (chat_id, message_id,))
@@ -58,7 +63,10 @@ def check_and_add_message(cursor,chat_id, message_id):
         cursor.execute("INSERT INTO Forward_ID (ChatID, MessageID) VALUES (?, ?)", (chat_id, message_id,))
         return False
 
+"""
+Функция для извлечения даты и времени из сообщения и отправки в @dategiveaway
 
+"""
 def extract_and_send_date():
     try:
         # Получаем последний пост из канала @giveawaybrand
@@ -126,7 +134,9 @@ def extract_and_send_date():
         print(f"Ошибка: {e}")
 
 
-
+"""
+Функция для поиска розыгрышей в каналах и пересылки их в @giveawaybrand
+"""
 
 def find_contest(channel):
     words = ["Участвую", "Участвовать"]
@@ -167,7 +177,9 @@ def find_contest(channel):
     connection.close()
     return count_contest
 
-
+"""
+Функция для отправки отчета в @dategiveaway
+"""
 def send_final_report(count_contest):
     try:
         report_message = f"Итоги за сегодня:\nНайдено розыгрешей: {count_contest}"
@@ -180,6 +192,12 @@ def send_final_report(count_contest):
 target_hours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
 total_contests = 0
+
+
+"""
+Запуск бота и ожидание сообщений
+
+"""
 
 with app:
     try:
