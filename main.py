@@ -179,17 +179,20 @@ def send_final_report(count_contest):
 
 target_hours = [7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
 
+total_contests = 0
+
 with app:
     try:
         while True:
             now_time = datetime.now()
             if now_time.hour in target_hours:
-                find_contest(groups)
+                found_today = find_contest(groups)
+                total_contests += found_today
                 print('Ждем следующей проверки...')
                 time.sleep(1800)
             else:
-                total_contests = find_contest(groups)
                 send_final_report(total_contests)
+                total_contests = 0
                 time.sleep(7*3600)
     finally:
         print("Работа завершена")
