@@ -4,6 +4,7 @@ import os
 from dotenv import load_dotenv
 import time
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 import sqlite3
 import re
 
@@ -42,6 +43,8 @@ def manage_db_connection():
     CREATE TABLE IF NOT EXISTS Forward_ID (
         ChatID INTEGER NOT NULL,
         MessageID INTEGER NOT NULL,
+        Timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+        Month TEXT NOT NULL, -- формат YYYY-MM
         UNIQUE(ChatID, MessageID)
     )
     ''')
@@ -60,8 +63,31 @@ def check_and_add_message(cursor,chat_id, message_id):
     if result:
         return True
     else:
-        cursor.execute("INSERT INTO Forward_ID (ChatID, MessageID) VALUES (?, ?)", (chat_id, message_id,))
+        current_month = datetime.now().strftime("%Y-%m")
+        cursor.execute(
+            "INSERT INTO Forward_ID (ChatID, MessageID, Month) VALUES (?, ?, ?)",
+            (chat_id, message_id, current_month)
+        )
         return False
+
+
+def clean_old_entries(cursor):
+    # Оставляем только текущий, предыдущий и позапрошлый месяцы
+    months_to_keep = [
+        (datetime.now() - relativedelta(months=i)).strftime("%Y-%m")
+        for i in range(3)
+    ]
+    placeholder = ','.join(['?'] * len(months_to_keep))
+    
+    cursor.execute(f'''
+        DELETE FROM Forward_ID
+        WHERE Month NOT IN ({placeholder})
+    ''', months_to_keep)
+    
+    print(f"Удалены записи вне месяцев: {', '.join(months_to_keep)}")
+
+
+
 
 """
 Функция для извлечения даты и времени из сообщения и отправки в @dategiveaway
@@ -172,6 +198,8 @@ def find_contest(channel):
                                     
         except Exception as e:
             print(f"Ошибка при обработке группы {group}: {e}")
+            
+    clean_old_entries(cursor)        
     connection.commit()
     cursor.close()
     connection.close()

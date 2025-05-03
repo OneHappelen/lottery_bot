@@ -3,3 +3,5 @@ Pyrogram==2.0.106
 PySocks==1.7.1
 TgCrypto==1.2.5
 python-dotenv==1.0.1
+python-dateutil==2.9.0.post0
+six==1.17.0
