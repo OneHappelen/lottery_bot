@@ -4,4 +4,5 @@ lottery_venv/
 my_user_bot.session
 .vscode/
 my_user_bot.session-journal
-.my_database.session
+my_database.session
+my_session.session
