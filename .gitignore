@@ -7,3 +7,4 @@ my_user_bot.session-journal
 my_database.session
 my_session.session
 __pycache__/
+my_database.db
