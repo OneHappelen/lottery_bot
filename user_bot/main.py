@@ -21,8 +21,8 @@ api_id = os.getenv("API_ID")
 api_hash = os.getenv("API_HASH")
 user_app = Client("user_session", api_id=api_id, api_hash=api_hash)
 
-GROUPS_FILE = "groups.txt"
-NEW_GROUPS_FILE = "new_group.txt"
+GROUPS_FILE = os.path.join(BASE_DIR, "groups.txt")
+NEW_GROUPS_FILE = os.path.join(BASE_DIR, "new_group.txt")
 
 # groups = [
 #     '@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
