@@ -8,9 +8,12 @@ from pyrogram import Client
 from pyrogram.types import Message
 from typing import Set
 
-# Путь к базе данных
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_DIR = os.path.join(BASE_DIR, "bd")
+# Папка проекта — родительская для user_bot
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+# Путь к базе данных: папка_проекта/bd/giveaways.db
+DB_DIR = os.path.join(PROJECT_DIR, "bd")
 DB_PATH = os.path.join(DB_DIR, "giveaways.db")
 
 # Убедимся, что папка для БД существует
@@ -21,8 +24,9 @@ api_id = os.getenv("API_ID")
 api_hash = os.getenv("API_HASH")
 user_app = Client("user_session", api_id=api_id, api_hash=api_hash)
 
-GROUPS_FILE = os.path.join(BASE_DIR, "groups.txt")
-NEW_GROUPS_FILE = os.path.join(BASE_DIR, "new_group.txt")
+# Пути к файлам groups.txt и new_group.txt в корне проекта
+GROUPS_FILE = os.path.join(PROJECT_DIR, "groups.txt")
+NEW_GROUPS_FILE = os.path.join(PROJECT_DIR, "new_group.txt")
 
 # groups = [
 #     '@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
