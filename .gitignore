@@ -7,3 +7,6 @@ my_user_bot.session-journal
 my_database.session
 my_session.sessio
 bd/giveaways.db
+user_bot/user_session.session
+api_bot/bot_session.session
+__pycache__/
