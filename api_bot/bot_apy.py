@@ -28,11 +28,11 @@ def parse_giveaway_datetime(date_str: str) -> datetime | None:
 
 # Получение розыгрышей на сегодня
 def get_today_giveaways():
-    today_str = datetime.now().strftime("%Y-%m-%d")
+    today_str = datetime.now().strftime("%Y-%m-%d") #получаю текущую дату
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT Link, ChannelTitle, GiveawayDate FROM Giveaways WHERE GiveawayDate = ?", (today_str,))
-    rows = c.fetchall()
+    c.execute("SELECT Link, ChannelTitle, GiveawayDate FROM Giveaways WHERE GiveawayDate = ?", (today_str,)) #запрашиваю ссылку, название канала и дату и фильрую относительно сегодняшней даты
+    rows = c.fetchall() #помещаю данные в(если есть) в переменую
     conn.close()
     return rows
 
@@ -40,45 +40,46 @@ def get_today_giveaways():
 def get_future_giveaways():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("SELECT Link, ChannelTitle, GiveawayDate FROM Giveaways")
-    rows = c.fetchall()
+    c.execute("SELECT Link, ChannelTitle, GiveawayDate FROM Giveaways") #запрашиваю ссылку, название канала и дату(все что есть в бд)
+    rows = c.fetchall() #помещаю в переменную
     conn.close()
 
-    now_date = datetime.now().date()
+    now_date = datetime.now().date() #получаю сегодняшнюю дату
     future_rows = []
 
     for link, title, date_str in rows:
-        dt = parse_giveaway_datetime(date_str)
-        if dt and dt.date() >= now_date:
-            future_rows.append((link, title, date_str, dt))
+        dt = parse_giveaway_datetime(date_str) #приводи дату к единому формату
+        if dt and dt.date() >= now_date:#делаем проверку на актуальность требованиям даты
+            future_rows.append((link, title, date_str, dt)) #кидаю в список ссылку, название канала, строка даты, обьект datetime 
 
-    future_rows.sort(key=lambda x: x[3])
+    future_rows.sort(key=lambda x: x[3]) #сортирую розыгрыши по дате от самое ближней и далее
     return [(link, title, date_str) for link, title, date_str, _ in future_rows]
 
 
 # Обработчик команды /today
 @bot_app.on_message(filters.command("today"))
 async def today_handler(client, message):
-    giveaways = get_today_giveaways()
+    giveaways = get_today_giveaways() #получаю розыгрыши с сегодняшней датой
     if not giveaways:
-        await message.reply("Сегодня розыгрышей не найдено.")
+        await message.reply("Сегодня розыгрышей не найдено.") #отвечаю если их нет
     else:
         for link, title, date in giveaways:
             # Формируем ссылку с названием канала в HTML формате
             text = f'<a href="{link}">{title}</a> — {date}'
-            await message.reply(text, disable_web_page_preview=True, parse_mode="html")
+            await message.reply(text, disable_web_page_preview=True, parse_mode="html") #отправляю по порядку все розыгрыши с сегодняшней датой
 
 # Обработчик команды /all
 @bot_app.on_message(filters.command("all"))
 async def all_handler(client, message):
-    giveaways = get_future_giveaways()
+    giveaways = get_future_giveaways() # получаю данные о розыгрышах если есть
     if not giveaways:
         await message.reply("Будущих розыгрышей не найдено.")
         return
 
-    batch_size = 10
-    chunks = [giveaways[i:i + batch_size] for i in range(0, len(giveaways), batch_size)]
+    batch_size = 10 #задаю лимит для строк в сообщении
+    chunks = [giveaways[i:i + batch_size] for i in range(0, len(giveaways), batch_size)] #формирую первую порцию данных из 10 строк
 
+    #отправляю сообщения пользователю по 10 строк в каждом с ссылкой в названии на розыгрыш и датой
     for chunk in chunks:
         lines = []
         for link, title, date in chunk:

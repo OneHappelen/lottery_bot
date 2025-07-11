@@ -41,10 +41,41 @@ NEW_GROUPS_FILE = os.path.join(PROJECT_DIR, "new_group.txt")
 # ]
 
 
+def add_text_column_if_not_exists():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+
+    # Получаем список колонок таблицы Giveaways
+    c.execute("PRAGMA table_info(Giveaways)")
+    columns = [info[1] for info in c.fetchall()]
+
+    # Если колонки Text нет — добавляем
+    if "Text" not in columns:
+        c.execute("ALTER TABLE Giveaways ADD COLUMN Text TEXT")
+        print("Колонка 'Text' добавлена в таблицу Giveaways.")
+    else:
+        print("Колонка 'Text' уже существует.")
+
+    conn.commit()
+    conn.close()
+
+
 # --------------- База данных ---------------
+def add_text_column_if_not_exists(conn):
+    c = conn.cursor()
+    c.execute("PRAGMA table_info(Giveaways)")
+    columns = [info[1] for info in c.fetchall()]
+
+    if "Text" not in columns:
+        c.execute("ALTER TABLE Giveaways ADD COLUMN Text TEXT")
+        print("Колонка 'Text' добавлена в таблицу Giveaways.")
+    else:
+        print("Колонка 'Text' уже существует.")
+
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
+
     c.execute('''CREATE TABLE IF NOT EXISTS Giveaways (
         ChatID INTEGER,
         MessageID INTEGER,
@@ -53,11 +84,16 @@ def init_db():
         GiveawayDate TEXT,
         PRIMARY KEY(ChatID, MessageID)
     )''')
+
+    # Проверяем и добавляем колонку Text, если нужно
+    add_text_column_if_not_exists(conn)
+
     conn.commit()
     conn.close()
 
 
-# Парсинг даты розыгрыша
+
+# Парсинг даты розыгрыша для дальнейшего приведения к единому формату
 def parse_giveaway_date(raw_date: str) -> datetime | None:
     raw_date = raw_date.strip().lower()
 
@@ -119,22 +155,37 @@ def parse_giveaway_date(raw_date: str) -> datetime | None:
 
 
 # Добавление розыгрыша в базу данных
-def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date):
+def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # Преобразование giveaway_date к формату YYYY-MM-DD
+    # Проверяем, есть ли запись с таким ChatID и MessageID
+    c.execute("SELECT 1 FROM Giveaways WHERE ChatID = ? AND MessageID = ?", (chat_id, message_id))
+    if c.fetchone():
+        print("Сообщение с таким ChatID и MessageID уже есть в базе, пропуск.")
+        conn.close()
+        return
+
+    # Если нет — проверяем, есть ли запись с таким же текстом
+    c.execute("SELECT 1 FROM Giveaways WHERE Text = ?", (text,))
+    if c.fetchone():
+        print("Сообщение с таким же текстом уже есть в базе, пропуск.")
+        conn.close()
+        return
+
+    # Обработка даты
     parsed_date = parse_giveaway_date(giveaway_date)
     if parsed_date:
         giveaway_date_str = parsed_date.strftime("%Y-%m-%d")
     else:
-        giveaway_date_str = giveaway_date  # fallback, если дата не парсится
+        giveaway_date_str = giveaway_date
 
-    c.execute('''INSERT OR IGNORE INTO Giveaways
-        (ChatID, MessageID, Link, ChannelTitle, GiveawayDate)
-        VALUES (?, ?, ?, ?, ?)''',
-        (chat_id, message_id, link, channel_title, giveaway_date_str)
-    )
+    # Добавляем новую запись
+    c.execute('''
+        INSERT INTO Giveaways (ChatID, MessageID, Link, ChannelTitle, GiveawayDate, Text)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (chat_id, message_id, link, channel_title, giveaway_date_str, text))
+
     conn.commit()
     conn.close()
 
@@ -143,16 +194,20 @@ def cleanup_old_giveaways():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
+    #получаю все розыгрыши по полям ChatID, MessageID, GiveawayDate и помещаю в rows
     c.execute('SELECT ChatID, MessageID, GiveawayDate FROM Giveaways')
     rows = c.fetchall()
 
-    today = datetime.now().date()
+    today = datetime.now().date() # получаю текущую дату
     deleted = 0
 
+    #прохожу по всем розыгрышам и проверяю дату с сегодняшней
     for chat_id, msg_id, raw_date in rows:
         try:
             parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
+            #если дата розыгрыша меньше сегодняшней
             if parsed_date < today:
+                #удаляю из бд
                 c.execute('DELETE FROM Giveaways WHERE ChatID=? AND MessageID=?', (chat_id, msg_id))
                 deleted += 1
         except ValueError:
@@ -273,13 +328,17 @@ def save_new_group(group_name: str, file_path: str):
         f.write(group_name + "\n")
 
 # Извлекаем @каналы и ссылки на них из текста и entities, сохраняем только новые
-def extract_and_save_new_groups(message_text: str, known_groups: Set[str], entities: list = None):
+def extract_and_save_new_groups(
+    message_text: str,
+    known_groups: Set[str],
+    entities: list = None
+):
     found_groups = set()
 
     # Поиск @channelname в тексте
     found_groups.update(re.findall(r"@[\w\d_]{4,32}", message_text))
 
-    # Поиск ссылок https://t.me/username в entities
+    # Поиск https://t.me/username в ссылках
     if entities:
         for entity in entities:
             if (
@@ -287,19 +346,24 @@ def extract_and_save_new_groups(message_text: str, known_groups: Set[str], entit
                 and hasattr(entity, "url") and isinstance(entity.url, str)
                 and entity.url.startswith("https://t.me/")
             ):
-                username = entity.url.removeprefix("https://t.me/").split("/")[0]
+                username = re.sub(r"/.*", "", entity.url.removeprefix("https://t.me/"))
                 if username:
                     found_groups.add(f"@{username}")
 
-    # Сохраняем только те, что не в списке известных
+    # Загружаем уже сохранённые группы из файла
+    new_groups = load_group_list(NEW_GROUPS_FILE)
+
+    # Сохраняем только уникальные
     for group in found_groups:
-        if group not in known_groups:
+        if group not in known_groups and group not in new_groups:
             print(f"[+] New group found: {group}")
             save_new_group(group, NEW_GROUPS_FILE)
+            known_groups.add(group)
 
 # ---------------- Основная логика ----------------
 async def find_contest():
     groups = load_group_list(GROUPS_FILE)
+
     words = ["Участвую", "Участвовать"]
     count_contest = 0
 
@@ -317,7 +381,7 @@ async def find_contest():
                                 print("Найдено сообщение с кнопкой для участия.")
                                 message_id = message.id
                                 if message_id is not None:
-                                    # Проверка в БД
+                                    # Проверка в БД есть ли такая запись уже сравнивая chat.id и message.id
                                     conn = sqlite3.connect(DB_PATH)
                                     c = conn.cursor()
                                     c.execute("SELECT 1 FROM Giveaways WHERE ChatID=? AND MessageID=?", (chat.id, message_id))
@@ -328,17 +392,17 @@ async def find_contest():
                                         print("Такое сообщение уже есть в базе, пропуск.")
                                         continue
 
-                                    text = getattr(message, "caption", "") or getattr(message, "text", "") or ""
-                                    entities = getattr(message, "caption_entities", None) or getattr(message, "entities", None)
+                                    text = getattr(message, "caption", "") or getattr(message, "text", "") or "" #извлекаю текст из text или caption
+                                    entities = getattr(message, "caption_entities", None) or getattr(message, "entities", None) #извлекаю разметку текста в поисках ссылок на др. каналы
 
-                                    giveaway_date = extract_giveaway_date(text)
-                                    await send_giveaway_date_info(chat, message_id, giveaway_date)
+                                    giveaway_date = extract_giveaway_date(text) # извлекаю дату из текста сообщения
+                                    await send_giveaway_date_info(chat, message_id, giveaway_date) # отправляю дату и ссылку в отсчетный канал
 
-                                    link = f"https://t.me/{chat.username}/{message_id}" if getattr(chat, "username", None) else ""
-                                    channel_title = getattr(chat, "title", "")
+                                    link = f"https://t.me/{chat.username}/{message_id}" if getattr(chat, "username", None) else "" #формирую ссылку на розыгрыш в родительском канале
+                                    channel_title = getattr(chat, "title", "")# извлекаю название канала
 
-                                    add_giveaway(chat.id, message_id, link, channel_title, giveaway_date or "не указана")
-                                    await user_app.forward_messages('@giveawaybrand', chat.id, message.id)
+                                    add_giveaway(chat.id, message_id, link, channel_title, giveaway_date or "не указана", text)#добавляю в бд извлеченные данные
+                                    await user_app.forward_messages('@giveawaybrand', chat.id, message.id)#пересылаю в целевой канал сообщение с розыгрешем
 
                                     # Извлекаем и сохраняем новые группы
                                     extract_and_save_new_groups(text, groups, entities)
@@ -365,7 +429,7 @@ async def userbot_worker():
             await asyncio.sleep(1800)
         else:
             total_contests = 0
-            cleanup_old_giveaways()
+            cleanup_old_giveaways()#удаление устаревших розыгрышей по дате 
             await asyncio.sleep(7*3600)
 
 async def main():
