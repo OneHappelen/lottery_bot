@@ -138,9 +138,9 @@ def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
     if c.fetchone():
         print("❌ Сообщение с таким же текстом уже есть в базе, пропуск.")
         conn.close()
-        return
+        return False  # <-- Возвращаем False, если уже есть
 
-    # Обработка даты (если нужно)
+    # Обработка даты
     parsed_date = parse_giveaway_date(giveaway_date)
     giveaway_date_str = parsed_date.strftime("%Y-%m-%d") if parsed_date else giveaway_date
 
@@ -153,6 +153,8 @@ def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
     conn.commit()
     conn.close()
     print("✅ Новая запись успешно добавлена.")
+    return True  # <-- Возвращаем True, если добавлено
+
 
 
 # Очистка устаревших розыгрышей
@@ -347,27 +349,20 @@ async def find_contest():
                                 print("Найдено сообщение с кнопкой для участия.")
                                 message_id = message.id
                                 if message_id is not None:
-                                    # Проверка в БД есть ли такая запись уже сравнивая chat.id и message.id
-                                    conn = sqlite3.connect(DB_PATH)
-                                    c = conn.cursor()
-                                    c.execute("SELECT 1 FROM Giveaways WHERE ChatID=? AND MessageID=?", (chat.id, message_id))
-                                    exists = c.fetchone()
-                                    conn.close()
-
-                                    if exists:
-                                        print("Такое сообщение уже есть в базе, пропуск.")
-                                        continue
 
                                     text = getattr(message, "caption", "") or getattr(message, "text", "") or "" #извлекаю текст из text или caption
                                     entities = getattr(message, "caption_entities", None) or getattr(message, "entities", None) #извлекаю разметку текста в поисках ссылок на др. каналы
 
                                     giveaway_date = extract_giveaway_date(text) # извлекаю дату из текста сообщения
-                                    await send_giveaway_date_info(chat, message_id, giveaway_date) # отправляю дату и ссылку в отсчетный канал
-
                                     link = f"https://t.me/{chat.username}/{message_id}" if getattr(chat, "username", None) else "" #формирую ссылку на розыгрыш в родительском канале
                                     channel_title = getattr(chat, "title", "")# извлекаю название канала
+                                    
+                                    added = add_giveaway(chat.id, message_id, link, channel_title, giveaway_date or "не указана", text)#добавляю в бд извлеченные данные
+                                    if not added:
+                                        print("Мы уже добавляли такой розыгрыш")
+                                        continue
 
-                                    add_giveaway(chat.id, message_id, link, channel_title, giveaway_date or "не указана", text)#добавляю в бд извлеченные данные
+                                    await send_giveaway_date_info(chat, message_id, giveaway_date) # отправляю дату и ссылку в отсчетный канал
                                     await user_app.forward_messages('@giveawaybrand', chat.id, message.id)#пересылаю в целевой канал сообщение с розыгрешем
 
                                     # Извлекаем и сохраняем новые группы

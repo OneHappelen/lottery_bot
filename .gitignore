@@ -10,3 +10,4 @@ bd/giveaways.db
 user_bot/user_session.session
 api_bot/bot_session.session
 __pycache__/
+new_group.txt
