@@ -41,55 +41,29 @@ NEW_GROUPS_FILE = os.path.join(PROJECT_DIR, "new_group.txt")
 # ]
 
 
-def add_text_column_if_not_exists():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    # Получаем список колонок таблицы Giveaways
-    c.execute("PRAGMA table_info(Giveaways)")
-    columns = [info[1] for info in c.fetchall()]
-
-    # Если колонки Text нет — добавляем
-    if "Text" not in columns:
-        c.execute("ALTER TABLE Giveaways ADD COLUMN Text TEXT")
-        print("Колонка 'Text' добавлена в таблицу Giveaways.")
-    else:
-        print("Колонка 'Text' уже существует.")
-
-    conn.commit()
-    conn.close()
 
 
 # --------------- База данных ---------------
-def add_text_column_if_not_exists(conn):
-    c = conn.cursor()
-    c.execute("PRAGMA table_info(Giveaways)")
-    columns = [info[1] for info in c.fetchall()]
 
-    if "Text" not in columns:
-        c.execute("ALTER TABLE Giveaways ADD COLUMN Text TEXT")
-        print("Колонка 'Text' добавлена в таблицу Giveaways.")
-    else:
-        print("Колонка 'Text' уже существует.")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    c.execute('''CREATE TABLE IF NOT EXISTS Giveaways (
-        ChatID INTEGER,
-        MessageID INTEGER,
-        Link TEXT,
-        ChannelTitle TEXT,
-        GiveawayDate TEXT,
-        PRIMARY KEY(ChatID, MessageID)
-    )''')
-
-    # Проверяем и добавляем колонку Text, если нужно
-    add_text_column_if_not_exists(conn)
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS Giveaways (
+            ChatID INTEGER,
+            MessageID INTEGER,
+            Link TEXT,
+            ChannelTitle TEXT,
+            GiveawayDate TEXT,
+            Text TEXT
+        )
+    ''')
 
     conn.commit()
     conn.close()
+
 
 
 
@@ -159,28 +133,18 @@ def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
 
-    # Проверяем, есть ли запись с таким ChatID и MessageID
-    c.execute("SELECT 1 FROM Giveaways WHERE ChatID = ? AND MessageID = ?", (chat_id, message_id))
-    if c.fetchone():
-        print("Сообщение с таким ChatID и MessageID уже есть в базе, пропуск.")
-        conn.close()
-        return
-
-    # Если нет — проверяем, есть ли запись с таким же текстом
+    # Проверка на дубликат по тексту
     c.execute("SELECT 1 FROM Giveaways WHERE Text = ?", (text,))
     if c.fetchone():
-        print("Сообщение с таким же текстом уже есть в базе, пропуск.")
+        print("❌ Сообщение с таким же текстом уже есть в базе, пропуск.")
         conn.close()
         return
 
-    # Обработка даты
+    # Обработка даты (если нужно)
     parsed_date = parse_giveaway_date(giveaway_date)
-    if parsed_date:
-        giveaway_date_str = parsed_date.strftime("%Y-%m-%d")
-    else:
-        giveaway_date_str = giveaway_date
+    giveaway_date_str = parsed_date.strftime("%Y-%m-%d") if parsed_date else giveaway_date
 
-    # Добавляем новую запись
+    # Вставка новой записи
     c.execute('''
         INSERT INTO Giveaways (ChatID, MessageID, Link, ChannelTitle, GiveawayDate, Text)
         VALUES (?, ?, ?, ?, ?, ?)
@@ -188,6 +152,8 @@ def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
 
     conn.commit()
     conn.close()
+    print("✅ Новая запись успешно добавлена.")
+
 
 # Очистка устаревших розыгрышей
 def cleanup_old_giveaways():
