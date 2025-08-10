@@ -2,22 +2,20 @@ import asyncio
 import os
 from dotenv import load_dotenv
 from datetime import datetime, timedelta
-import sqlite3
 import re
+import sys
 from pyrogram import Client
 from pyrogram.types import Message
 from typing import Set
 
+
+
 # Папка проекта — родительская для user_bot
 PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
-# Путь к базе данных: папка_проекта/bd/giveaways.db
-DB_DIR = os.path.join(PROJECT_DIR, "bd")
-DB_PATH = os.path.join(DB_DIR, "giveaways.db")
-
-# Убедимся, что папка для БД существует
-os.makedirs(DB_DIR, exist_ok=True)
+# Добавляем корень проекта в sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from database import get_db_pool, Database
 
 load_dotenv()
 api_id = os.getenv("API_ID")
@@ -28,41 +26,13 @@ user_app = Client("user_session", api_id=api_id, api_hash=api_hash)
 GROUPS_FILE = os.path.join(PROJECT_DIR, "groups.txt")
 NEW_GROUPS_FILE = os.path.join(PROJECT_DIR, "new_group.txt")
 
-# groups = [
-#     '@Wylsared', '@moscowach', '@whackdoor', '@trendsetter', '@rozetkedlive', '@rozetked', '@retailrus', '@Romancev768', '@b_retail', '@bezposhady',
-#     '@remedia', '@zubarefff', '@provod', '@mosnews', '@biggeekru', '@TrendWatching24', '@unit_ru', '@thearseny', '@stopgameru',
-#     '@trendach', '@mknewsru', '@settersmedia_news', '@intelligent_cat', 'https://t.me/+iI538bjZlGJmYWQy', '@jeteed', '@igmtv', '@mosreview',
-#     '@ruspr', '@trends', '@setters', '@techmedia', '@technopark_ru', '@bigpencil', '@mosguru', '@moscowmi', '@techbybird', '@technodeus2023',
-#     '@klientvsprav', '@rbtshki', '@bugfeature', '@exploitex', '@techno_yandex', '@zhiga', '@yandex', '@topor', '@dvizhitall', 't.me/+VIuvvPWhb-mR4BRq', '@moscowachplus',
-#     '@nebudetgg', '@moscowmap', '@pravdadirty', '@infomoscow24', '@rhymestg', '@lifegoodd1', '@codecamp', '@malepeg', '@xor_journal', '@colizeumarena',
-#     '@rhymesport', '@Match_TV', '@sportsru', '@news_matchtv', '@Inter_sh0p', '@sports_kiber', '@investingcorp', '@Moscow_happy', '@luka_ebkov', '@OneBoxTwoBox',
-#     '@Technical_R_D', '@rostov_glavniy', '@tochnokosmos', '@msk7days', '@mrnickstore', '@nechetoff', '@ryanrun', '@boomers_TV', '@oplata_skoro_budet', '@kostylofficial',
-#     '@citilink_official', '@evgenmt'
-# ]
-
 
 
 
 # --------------- База данных ---------------
 
 
-def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
 
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS Giveaways (
-            ChatID INTEGER,
-            MessageID INTEGER,
-            Link TEXT,
-            ChannelTitle TEXT,
-            GiveawayDate TEXT,
-            Text TEXT
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
 
 
 
@@ -129,62 +99,55 @@ def parse_giveaway_date(raw_date: str) -> datetime | None:
 
 
 # Добавление розыгрыша в базу данных
-def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+async def add_giveaway(chat_id, message_id, link, channel_title, giveaway_date, text):
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        # Проверка на дубликат по тексту
+        existing = await conn.fetchrow(
+            "SELECT 1 FROM giveaways WHERE text = $1",
+            text
+        )
+        if existing:
+            print("❌ Сообщение с таким же текстом уже есть в базе, пропуск.")
+            return False
 
-    # Проверка на дубликат по тексту
-    c.execute("SELECT 1 FROM Giveaways WHERE Text = ?", (text,))
-    if c.fetchone():
-        print("❌ Сообщение с таким же текстом уже есть в базе, пропуск.")
-        conn.close()
-        return False  # <-- Возвращаем False, если уже есть
+        # Обработка даты
+        parsed_date = parse_giveaway_date(giveaway_date)
+        giveaway_date_str = parsed_date.strftime("%Y-%m-%d") if parsed_date else giveaway_date
 
-    # Обработка даты
-    parsed_date = parse_giveaway_date(giveaway_date)
-    giveaway_date_str = parsed_date.strftime("%Y-%m-%d") if parsed_date else giveaway_date
+        # Вставка новой записи
+        await conn.execute('''
+            INSERT INTO giveaways (chat_id, message_id, link, channel_title, giveaway_date, text)
+            VALUES ($1, $2, $3, $4, $5, $6)
+        ''', chat_id, message_id, link, channel_title, giveaway_date_str, text)
 
-    # Вставка новой записи
-    c.execute('''
-        INSERT INTO Giveaways (ChatID, MessageID, Link, ChannelTitle, GiveawayDate, Text)
-        VALUES (?, ?, ?, ?, ?, ?)
-    ''', (chat_id, message_id, link, channel_title, giveaway_date_str, text))
-
-    conn.commit()
-    conn.close()
-    print("✅ Новая запись успешно добавлена.")
-    return True  # <-- Возвращаем True, если добавлено
+        print("✅ Новая запись успешно добавлена.")
+        return True
 
 
 
 # Очистка устаревших розыгрышей
-def cleanup_old_giveaways():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+async def cleanup_old_giveaways():
+    pool = await get_db_pool()
+    async with pool.acquire() as conn:
+        rows = await conn.fetch('SELECT ChatID, MessageID, GiveawayDate FROM Giveaways')
 
-    #получаю все розыгрыши по полям ChatID, MessageID, GiveawayDate и помещаю в rows
-    c.execute('SELECT ChatID, MessageID, GiveawayDate FROM Giveaways')
-    rows = c.fetchall()
+        today = datetime.now().date()
+        deleted = 0
 
-    today = datetime.now().date() # получаю текущую дату
-    deleted = 0
+        for row in rows:
+            try:
+                parsed_date = datetime.strptime(row['GiveawayDate'], "%Y-%m-%d").date()
+                if parsed_date < today:
+                    await conn.execute(
+                        'DELETE FROM Giveaways WHERE ChatID = $1 AND MessageID = $2',
+                        row['ChatID'], row['MessageID']
+                    )
+                    deleted += 1
+            except ValueError:
+                continue  # Пропускаем записи с некорректной датой
 
-    #прохожу по всем розыгрышам и проверяю дату с сегодняшней
-    for chat_id, msg_id, raw_date in rows:
-        try:
-            parsed_date = datetime.strptime(raw_date, "%Y-%m-%d").date()
-            #если дата розыгрыша меньше сегодняшней
-            if parsed_date < today:
-                #удаляю из бд
-                c.execute('DELETE FROM Giveaways WHERE ChatID=? AND MessageID=?', (chat_id, msg_id))
-                deleted += 1
-        except ValueError:
-            # Игнорируем строки, которые не удалось распарсить
-            continue
-
-    conn.commit()
-    conn.close()
-    print(f"Очистка завершена: удалено {deleted} устаревших розыгрышей.")    
+        print(f"Очистка завершена: удалено {deleted} устаревших розыгрышей.")   
 
 
 MONTHS_RU = {
@@ -335,50 +298,56 @@ async def find_contest():
     words = ["Участвую", "Участвовать"]
     count_contest = 0
 
-    for group in groups.copy():  # Используем .copy() чтобы избежать RuntimeError при итерации
+    for group in groups.copy():
         try:
-            await asyncio.sleep(2) #жди секунду
+            await asyncio.sleep(2)
             print(f"Канал {group} в процессе")
-            chat = await user_app.get_chat(group) #получаю обьект чата группы N
+            chat = await user_app.get_chat(group)
 
-            async for message in user_app.get_chat_history(chat.id, limit=7): #получаю последние 7 постов в канале
-                if hasattr(message, "reply_markup") and message.reply_markup is not None: #проверяю есть ли у поста reply_markup и не являеться ли он None
-                    for row in message.reply_markup.inline_keyboard: #прохожу по списку кнопок с посте
+            async for message in user_app.get_chat_history(chat.id, limit=7):
+                if hasattr(message, "reply_markup") and message.reply_markup is not None:
+                    for row in message.reply_markup.inline_keyboard:
                         for button in row:
-                            if any(word in button.text for word in words):# делаю проверку на слово Учавствовать у кнопки
+                            if any(word in button.text for word in words):
                                 print("Найдено сообщение с кнопкой для участия.")
                                 message_id = message.id
                                 if message_id is not None:
 
-                                    text = getattr(message, "caption", "") or getattr(message, "text", "") or "" #извлекаю текст из text или caption
-                                    entities = getattr(message, "caption_entities", None) or getattr(message, "entities", None) #извлекаю разметку текста в поисках ссылок на др. каналы
+                                    text = getattr(message, "caption", "") or getattr(message, "text", "") or ""
+                                    entities = getattr(message, "caption_entities", None) or getattr(message, "entities", None)
 
-                                    giveaway_date = extract_giveaway_date(text) # извлекаю дату из текста сообщения
-                                    link = f"https://t.me/{chat.username}/{message_id}" if getattr(chat, "username", None) else "" #формирую ссылку на розыгрыш в родительском канале
-                                    channel_title = getattr(chat, "title", "")# извлекаю название канала
-                                    
-                                    added = add_giveaway(chat.id, message_id, link, channel_title, giveaway_date or "не указана", text)#добавляю в бд извлеченные данные
+                                    giveaway_date = extract_giveaway_date(text)
+                                    link = f"https://t.me/{chat.username}/{message_id}" if getattr(chat, "username", None) else ""
+                                    channel_title = getattr(chat, "title", "")
+
+                                    added = await add_giveaway(
+                                        chat.id,
+                                        message_id,
+                                        link,
+                                        channel_title,
+                                        giveaway_date or "не указана",
+                                        text
+                                    )
+
                                     if not added:
                                         print("Мы уже добавляли такой розыгрыш")
                                         continue
 
-                                    await send_giveaway_date_info(chat, message_id, giveaway_date) # отправляю дату и ссылку в отсчетный канал
-                                    await user_app.forward_messages('@giveawaybrand', chat.id, message.id)#пересылаю в целевой канал сообщение с розыгрешем
+                                    await send_giveaway_date_info(chat, message_id, giveaway_date)
+                                    await user_app.forward_messages('@giveawaybrand', chat.id, message.id)
 
-                                    # Извлекаем и сохраняем новые группы
                                     extract_and_save_new_groups(text, groups, entities)
 
                                     print("Сообщение отправлено в @giveawaybrand и добавлено в БД.")
                                     count_contest += 1
                                     await asyncio.sleep(3)
-            await asyncio.sleep(2)                          
+            await asyncio.sleep(2)
         except Exception as e:
             print(f"Ошибка при обработке группы {group}: {e}")
 
     return count_contest
 
 async def userbot_worker():
-    init_db()
     target_hours = list(range(7, 24))
     total_contests = 0
     while True:
@@ -390,11 +359,10 @@ async def userbot_worker():
             await asyncio.sleep(1800)
         else:
             total_contests = 0
-            cleanup_old_giveaways()#удаление устаревших розыгрышей по дате 
+            await cleanup_old_giveaways()  # <-- асинхронная версия
             await asyncio.sleep(7*3600)
 
 async def main():
-    init_db()
     async with user_app:
         asyncio.create_task(userbot_worker())
         while True:
