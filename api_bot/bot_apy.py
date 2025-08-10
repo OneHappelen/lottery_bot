@@ -1,8 +1,13 @@
 import os
+import sys
 from datetime import datetime
 from dotenv import load_dotenv
 from pyrogram import Client, filters
 from pyrogram.enums import ParseMode
+
+PROJECT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.append(PROJECT_DIR)
+
 from database import Database  # твой класс для работы с PostgreSQL
 
 load_dotenv()
